@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src='https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .file-input-button:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .mode-active { background-color: white; color: #4f46e5; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .status-wanted { color: #ef4444; font-weight: 700; }
+        .status-entering { color: #22c55e; }
+        .status-leaving { color: #f97316; }
+        .parking-full { color: #ef4444; font-weight: 700; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { border-top-color: #3498db; animation: spin 1s linear infinite; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-10">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Parking Management System</h1>
+            <p class="text-gray-600 mt-2">Scan plates to manage vehicle entry and exit.</p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="flex flex-col">
+                <div class="flex border border-gray-300 rounded-lg p-1 mb-4 bg-gray-100">
+                    <button id="mode-upload-btn" class="w-1/3 p-2 text-sm rounded-md mode-active">File Upload</button>
+                    <button id="mode-live-btn" class="w-1/3 p-2 text-sm rounded-md text-gray-500">Live Camera</button>
+                    <button id="mode-capture-btn" class="w-1/3 p-2 text-sm rounded-md text-gray-500">Capture</button>
+                </div>
+                <div id="upload-view" class="flex flex-col items-center justify-center bg-gray-100 rounded-xl p-6 border-2 border-dashed border-gray-300">
+                    <div class="w-full h-64 flex items-center justify-center mb-4">
+                        <img id="image-preview" src="https://placehold.co/600x400/e2e8f0/cbd5e0?text=Your+Image+Here" alt="Image Preview" class="max-w-full max-h-full rounded-lg object-contain">
+                    </div>
+                    <input type="file" id="image-upload" class="hidden" accept="image/*">
+                    <label for="image-upload" class="file-input-button cursor-pointer w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg text-center hover:bg-indigo-700">Choose Image</label>
+                </div>
+                <div id="webcam-view" class="hidden flex-col items-center justify-center bg-gray-900 rounded-xl p-6 border-2 border-dashed border-gray-700">
+                    <div class="w-full h-64 flex items-center justify-center mb-4 bg-black rounded-lg relative">
+                        <video id="webcam-feed" autoplay playsinline class="w-full max-h-full"></video>
+                        <div id="live-overlay" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-lg font-semibold hidden">Live scan active...</div>
+                    </div>
+                    <button id="live-scan-btn" class="hidden w-full bg-red-600 text-white font-semibold py-3 px-4 rounded-lg text-center hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed">Start Live Scan</button>
+                    <button id="capture-btn" class="hidden w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg text-center hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">Capture & Analyze</button>
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <button id="upload-convert-btn" class="w-full bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>Analyze Plate Image</button>
+                <div class="mt-4 flex-grow flex flex-col bg-gray-100 p-4 rounded-lg border border-gray-300">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-lg font-semibold text-gray-700">Plate Details:</label>
+                        <div class="text-right">
+                            <h3 class="text-sm font-medium text-gray-600">Cars in Parking</h3>
+                            <p id="parking-count" class="text-2xl font-bold text-indigo-600">0</p>
+                            <p id="parking-details" class="text-xs font-medium text-gray-500">Remaining Slots: 3</p>
+                        </div>
+                    </div>
+                    <div id="output-display" class="w-full flex-grow text-sm" style="white-space: pre-wrap;">Please wait...</div>
+                </div>
+                <button id="copy-btn" class="mt-4 w-full bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition">Copy Details</button>
+
+                <!-- History Section -->
+                <div class="mt-6">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-2">History Log</h2>
+                    <div id="history-log" class="bg-gray-100 p-4 rounded-lg border border-gray-300 max-h-64 overflow-y-auto text-sm text-gray-700">
+                        <p>No history recorded yet.</p>
+                    </div>
+                    <button id="download-history" class="mt-2 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Download History as JSON</button>
+                </div>
+            </div>
+        </div>
+        <div id="message-box" class="mt-6 p-4 rounded-lg text-center text-white font-medium hidden"></div>
+    </div>
+    <script>
+        document.getElementById("download-history").addEventListener("click", () => {
+            window.location.href = "/download_history";
+        });
+    </script>
+</body>
+</html>
